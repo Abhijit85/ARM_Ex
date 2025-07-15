@@ -667,11 +667,51 @@ results_file=None
 
 
 from llama_index.llms.deepseek import DeepSeek
+from llama_index.llms.gemini import Gemini
+from llama_index.llms.openai import OpenAI
 
-# you can also set DEEPSEEK_API_KEY in your environment variables
-llm = DeepSeek(model="deepseek-ai/DeepSeek-V3-0324",
-                 api_key="insert key here",
-               api_base="https://api.kluster.ai/v1")
+
+def get_llm(provider: str = "deepseek", api_key: str | None = None):
+    """Return an LLM instance for the given provider."""
+    provider = provider.lower()
+
+    if provider == "deepseek":
+        if not api_key:
+            api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "DeepSeek API key not provided. Set the `DEEPSEEK_API_KEY` environment variable or pass the key explicitly."
+            )
+        return DeepSeek(
+            model="deepseek-ai/DeepSeek-V3-0324",
+            api_key=api_key,
+            api_base="https://api.kluster.ai/v1",
+        )
+
+    if provider == "gemini":
+        if not api_key:
+            api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "Gemini API key not provided. Set the `GOOGLE_API_KEY` environment variable or pass the key explicitly."
+            )
+        genai.configure(api_key=api_key)
+        return Gemini(model="models/gemini-2.0-flash", api_key=api_key, max_tokens=1_000_000)
+
+    if provider == "openai":
+        if not api_key:
+            api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OpenAI API key not provided. Set the `OPENAI_API_KEY` environment variable or pass the key explicitly."
+            )
+        return OpenAI(model="gpt-3.5-turbo", api_key=api_key)
+
+    raise ValueError(f"Unsupported LLM provider: {provider}")
+
+
+provider = os.environ.get("LLM_PROVIDER", "deepseek")
+llm = get_llm(provider)
 
 # You might also want to set deepseek as your default llm
 # from llama_index.core import Settings
@@ -724,8 +764,8 @@ accuracy = 0
 total_questions = len(questions_data)
 c = 0
 top_k = 5
-delta=3
-result_file = f"./results_ground_truth_deepseek.json"
+delta = 3
+result_file = f"./results_ground_truth_{provider}.json"
 
 # Check for existing results and load completed question IDs
 completed_question_ids = set()
